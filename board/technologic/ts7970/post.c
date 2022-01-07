@@ -16,6 +16,7 @@
 #include <command.h>
 #include <i2c.h>
 #include <status_led.h>
+#include <spi_flash.h>
 #include <usb.h>
 
 #include <miiphy.h>
@@ -335,6 +336,44 @@ static int fpga_rev(void)
 	return (val & 0xf0) >> 4;
 }
 
+static int spi_mux_test(void)
+{
+	struct spi_flash *flash;
+	uint32_t buf;
+	int ret = 0;
+	uint8_t val;
+
+	if(getenv("post_nomux")) {
+		return 0;
+	}
+
+	val = 0;
+	i2c_write(0x28, 57, 2, &val, 1); /* Select offboard */
+	flash = spi_flash_probe(0, 0, 15000000, 0);
+	spi_flash_read(flash, 0x90000, 4, &buf);
+	if(buf != 0xdeadbeef) {
+		printf("Expected offboard flash 0xDEADBEEF, got 0x%X\n", buf);
+		ret = 1;
+	}
+
+	val = 1;
+	i2c_write(0x28, 57, 2, &val, 1); /* Select onboard */
+	flash = spi_flash_probe(0, 0, 15000000, 0);
+	spi_flash_read(flash, 0x90000, 4, &buf);
+	if(buf == 0xdeadbeef) {
+		printf("Onboard flash returned sentry value, mux failure\n");
+		ret = 1;
+	}
+
+	/* set back to default offboard */
+	i2c_write(0x28, 57, 2, &val, 1);
+
+	if (ret == 0) printf("SPI MUX test passed\n");
+	else printf("SPI MUX test failed\n");
+
+	return ret;
+}
+
 static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int ret = 0;
@@ -514,6 +553,7 @@ static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	ret |= emmc_test();
 	ret |= mem_test();
 	ret |= silabs_test();
+	ret |= spi_mux_test();
 
 	if (ret == 0) printf("All POST tests passed\n");
 	else printf("One or more POST tests failed\n");
