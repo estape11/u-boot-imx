@@ -58,6 +58,7 @@
 #define TS7970_REVB		IMX_GPIO_NR(7, 1)
 #define TS7970_REVD		IMX_GPIO_NR(7, 0)
 #define TS7970_REVG		IMX_GPIO_NR(1, 29)
+#define TS7970_REVH		IMX_GPIO_NR(2, 3)
 #define TS7970_WIFI_EN		IMX_GPIO_NR(1, 26)
 #define TS7970_BT_EN		IMX_GPIO_NR(1, 27)
 #define TS7970_SD1_D0		IMX_GPIO_NR(1, 16)
@@ -295,8 +296,11 @@ char board_rev(void)
 		/* REV C boards were never built */
 		gpio_direction_input(TS7970_REVD);
 		gpio_direction_input(TS7970_REVG);
+		gpio_direction_input(TS7970_REVH);
 
-		if(!gpio_get_value(TS7970_REVG)) {
+		if(!gpio_get_value(TS7970_REVH)) {
+			rev = 'H';
+		} else if(!gpio_get_value(TS7970_REVG)) {
 			rev = 'G';
 		} else {
 			/* If GP1 bit 0 is set, REV F */
