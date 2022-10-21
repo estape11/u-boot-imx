@@ -179,19 +179,6 @@ int emmc_test(void)
 	return ret;
 }
 
-/* Check for ISL12020 */
-int rtc_test(void)
-{
-	int ret;
-
-	ret = i2c_probe(0x57);
-	ret |= i2c_probe(0x6f);
-
-	if (ret == 0) printf("RTC test passed\n");
-	else printf("RTC test failed\n");
-	return ret;
-}
-
 int mem_test(void)
 {
 	int ret = 0;
@@ -415,7 +402,6 @@ static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 				printf("Silab rev is old or invalid\n");
 			}
 			ret |= usbhub_test();
-			ret |= rtc_test();
 			ret |= marvell_phy_test();
 
 			break;
@@ -435,7 +421,6 @@ static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 				printf("Silab rev is old or invalid\n");
 			}
 			ret |= usbhub_test();
-			ret |= rtc_test();
 			ret |= marvell_phy_test();
 
 			break;
@@ -456,7 +441,6 @@ static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 			}
 
 			ret |= usbhub_test();
-			ret |= rtc_test();
 			ret |= marvell_phy_test();
 
 			break;
@@ -477,7 +461,6 @@ static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 			}
 
 			ret |= usbhub_test();
-			ret |= rtc_test();
 			ret |= marvell_phy_test();
 			break;
 		case 13:
@@ -496,7 +479,6 @@ static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 				printf("Silab rev is old or invalid\n");
 			}
 
-			ret |= rtc_test();
 			ret |= marvell_phy_test();
 			break;
 		case 14:
@@ -515,7 +497,6 @@ static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 				printf("Silab rev is old or invalid\n");
 			}
 
-			ret |= rtc_test();
 			ret |= marvell_phy_test();
 			break;
 		case 15: /* Custom board or failure */
