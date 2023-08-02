@@ -59,6 +59,8 @@
 #define TS7990_BKL_EN		IMX_GPIO_NR(3, 0)
 #define TS7990_FPGA_RESET	IMX_GPIO_NR(2, 28)
 #define TS7990_REVB			IMX_GPIO_NR(3, 2)
+#define TS7990_REVD		IMX_GPIO_NR(5, 30)
+#define TS7990_REVE		IMX_GPIO_NR(2, 3)
 #define TS7990_SATASEL		IMX_GPIO_NR(7, 8)
 #define TS7990_NOCHRG		IMX_GPIO_NR(5, 28)
 #define TS7990_FPGA_SPI_CS	IMX_GPIO_NR(5, 31)
@@ -80,6 +82,8 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define SPI_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_SPEED_MED |		\
 	PAD_CTL_DSE_40ohm     | PAD_CTL_SRE_FAST)
+
+#define GPIO_WEAK_PULLUP (PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
 
 #define I2C_PAD_CTRL (PAD_CTL_PUS_100K_UP |                  \
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_HYS |   \
@@ -105,9 +109,11 @@ iomux_v3_cfg_t const misc_pads[] = {
 	MX6_PAD_EIM_DA0__GPIO3_IO00 | MUX_PAD_CTRL(LCD_PAD_CTRL),   // EN_BKLT
 	MX6_PAD_EIM_DA9__GPIO3_IO09 | MUX_PAD_CTRL(NO_PAD_CTRL),    // PUSH_SW_1 (Home)
 	MX6_PAD_EIM_DA10__GPIO3_IO10 | MUX_PAD_CTRL(NO_PAD_CTRL),   // PUSH_SW_2 (Back)
-	MX6_PAD_EIM_DA2__GPIO3_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),    // TS7990_REVB strap
+	MX6_PAD_EIM_DA2__GPIO3_IO02 | MUX_PAD_CTRL(GPIO_WEAK_PULLUP),    // TS7990_REVB strap
 	MX6_PAD_SD3_RST__GPIO7_IO08 | MUX_PAD_CTRL(NO_PAD_CTRL),
 	MX6_PAD_CSI0_DAT10__GPIO5_IO28 | MUX_PAD_CTRL(NO_PAD_CTRL), // NO_CHRG jumper
+	MX6_PAD_CSI0_DAT12__GPIO5_IO30 | MUX_PAD_CTRL(GPIO_WEAK_PULLUP), // REV D strap
+	MX6_PAD_NANDF_D3__GPIO2_IO03 | MUX_PAD_CTRL(GPIO_WEAK_PULLUP), // REV E strap
 };
 
 /* SD card */
@@ -220,7 +226,7 @@ struct i2c_pads_info i2c_pad_info0 = {
 
 /* We need to know if it is rev A before we set up i2c.  This is done 
 * differently on rev a/b, but is the same on >= 'B' */
-bool board_is_reva()
+static bool board_is_reva(void)
 {
 	gpio_direction_input(TS7990_REVB);
 	/* Low means it is REV B */
@@ -232,18 +238,28 @@ bool board_is_reva()
 char board_rev(void)
 {
 	static int rev = -1;
+	uint8_t val;
+	uint8_t fpgarev;
+
+	gpio_direction_input(TS7990_REVD);
+	gpio_direction_input(TS7990_REVE);
 
 	if(rev == -1) {
 		if(board_is_reva()){
 			rev = 'A';
 		} else {
-			uint8_t val;
-			uint8_t fpgarev;
 			i2c_read(0x28, FPGA_REV_OPS, 2, &val, 1);
 			fpgarev = val >> 4;
-			if((val & FPGA_OPS_G12) &&
-				fpgarev >= 10) {
-				rev = 'C';
+			if((val & FPGA_OPS_G12) && fpgarev >= 10) {
+				if (!gpio_get_value(TS7990_REVD)) {
+					if (! gpio_get_value(TS7990_REVE)) {
+						rev = 'E';
+					} else {
+						rev = 'D';
+					}
+				} else {
+					rev = 'C';
+				}
 			} else {
 				rev = 'B';
 			}
@@ -675,26 +691,44 @@ int board_mmc_init(bd_t *bis)
 
 int board_phy_config(struct phy_device *phydev)
 {
-	/* Microchip KSZ9031RNX */
-	if(board_rev() == 'A') {
-		ksz9031_phy_extended_write(phydev, 0x2, 0x8, 0x8000, 0x3EF);
-		ksz9031_phy_extended_write(phydev, 0x0, 0x3, 0x8000, 0x1A80);
-		ksz9031_phy_extended_write(phydev, 0x0, 0x4, 0x8000, 0x0006);
-	} else { /* Marvell 88E1512 */
-		/* reg page 2 */
-		phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x0002);
-		/* Delay RGMII TX and RX */
-		phy_write(phydev, MDIO_DEVAD_NONE, 0x15, 0x1070);
-		/* reg page 0 */
-		phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x0000);
-		/* Enable downshift after 1 try */
-		phy_write(phydev, MDIO_DEVAD_NONE, 16, 0x1860);
-		/* reg page 3 */
-		phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x0003);
-		/* Change LED */
-		phy_write(phydev, MDIO_DEVAD_NONE, 16, 0x1017);
-		/* reset to reg page 0 */
-		phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x0000);
+	uint16_t value;
+	switch (board_rev()) {
+		case 'A':
+			/* Microchip KSZ9031RNX */
+			ksz9031_phy_extended_write(phydev, 0x2, 0x8, 0x8000, 0x3EF);
+			ksz9031_phy_extended_write(phydev, 0x0, 0x3, 0x8000, 0x1A80);
+			ksz9031_phy_extended_write(phydev, 0x0, 0x4, 0x8000, 0x0006);
+			break;
+		case 'B':
+		case 'C':
+		case 'D':
+			/* Marvell 88E1512 */
+			/* reg page 2 */
+			phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x0002);
+			/* Delay RGMII TX and RX */
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x15, 0x1070);
+			/* reg page 0 */
+			phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x0000);
+			/* Enable downshift after 1 try */
+			phy_write(phydev, MDIO_DEVAD_NONE, 16, 0x1860);
+			/* reg page 3 */
+			phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x0003);
+			/* Change LED */
+			phy_write(phydev, MDIO_DEVAD_NONE, 16, 0x1017);
+			/* reset to reg page 0 */
+			phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x0000);
+			break;
+		default:
+		case 'E':
+			/* LED1 = 0x0, LINKSPD[1]
+			 * LED2 = 0x3, ACTIVITYLED */
+			value = (1 << 15) | (0xd << 10) | (0x3 << 4);
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x1c, value);
+			/* Enable "traffic mode" for ACTIVITYLED. Without this,
+			 * the LED blinks at a constant rate rather than with
+			 * traffic. */
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x20);
+			break;
 	}
 
 	if (phydev->drv->config)

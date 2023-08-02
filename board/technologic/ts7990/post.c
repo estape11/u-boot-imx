@@ -34,6 +34,8 @@ int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 			char * const argv[]);
 void do_usb_start(void);
 
+extern char board_rev(void);
+
 int fpga_test(void)
 {
 	int ret = 0;
@@ -86,6 +88,34 @@ int marvell_phy_test(void)
 
 	if(model != 0x1d) {
 		printf("Wrong PHY?  Bad model 0x%X not 0x1d\n", oui);
+		ret |= 1;
+	}
+
+	if (ret == 0) printf("PHY test passed\n");
+	else printf("PHY test failed\n");
+	return ret;
+}
+
+
+int broadcom_phy_test(void)
+{
+	int ret = 0;
+	unsigned int oui;
+	unsigned char model;
+	unsigned char rev;
+
+	if (miiphy_info ("FEC", 0x1, &oui, &model, &rev) != 0) {
+		printf("Failed to find PHY\n");
+		return 1;
+	}
+
+	if(oui != 0x180361) {
+		printf("Wrong PHY?  Bad OUI 0x%X 0x180361\n", oui);
+		ret |= 1;
+	}
+
+	if(model != 0x0A) {
+		printf("Wrong PHY?  Bad model 0x%X not 0x0A\n", oui);
 		ret |= 1;
 	}
 
@@ -292,14 +322,25 @@ static int do_post_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	/* Test FPGA first so we know we can trust the build variant */
 	ret |= fpga_test();
 	ret |= i2c_read(0x28, 51, 2, &val, 1);
+	switch (board_rev()) {
+		case 'A':
+		default:
+			break;
+		case 'B':
+		case 'C':
+		case 'D':
+			ret |= marvell_phy_test();
+			break;
+		case 'E':
+			ret |= broadcom_phy_test();
+			break;
+	}
 
-	ret |= marvell_phy_test();
 	ret |= emmc_test();
 	ret |= mem_test();
 	ret |= usbhub_test();
 	ret |= rtc_test();
 	ret |= silabs_test();
-
 
 	if (ret == 0) printf("All POST tests passed\n");
 	else printf("One or more POST tests failed\n");
