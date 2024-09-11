@@ -252,9 +252,10 @@
 		"setenv bootargs root=${rootdev} rootwait rw ${cmdline_append}; " \
 		"bootm ${loadaddr} - ${fdtaddr};\0" \
 	"sdboot=echo Booting from the SD card ...; " \
+		"run mender_setup; " \
 		"env set bootdev mmc; " \
 		"env set bootpart 0:1; " \
-		"env set rootdev '/dev/mmcblk1p1'; " \
+		"env set rootdev ${mender_boot_part_name}; " \
 		"run bootlinux;\0" \
 	"emmcboot=echo Booting from the eMMC ...; " \
 		"env set bootdev mmc; " \
