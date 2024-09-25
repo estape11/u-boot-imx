@@ -335,6 +335,9 @@
 /* FLASH and environment organization */
 #define CONFIG_SYS_NO_FLASH
 
+#define CONFIG_BOOTCOUNT_LIMIT
+#define CONFIG_BOOTCOUNT_ENV
+
 #define CONFIG_ENV_SIZE			(8 * 1024)
 #define CONFIG_ENV_IS_IN_SPI_FLASH
 #define CONFIG_ENV_OFFSET		0x100000

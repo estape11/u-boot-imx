@@ -106,3 +106,22 @@ make menuconfig
 ## Mender integration
 ### Create the config_mender_defines.h
 Using the auto-generation script from [meta-mender](https://raw.githubusercontent.com/mendersoftware/meta-mender/kirkstone/meta-mender-core/recipes-bsp/u-boot/u-boot-mender.inc) define the needed variables for Mender to work
+
+## fw_ tools
+### Requirements
+It requires the toolchain to be installed (need to check this information).
+```
+sudo apt install gcc-multilib
+```
+
+### Compile
+Follow the instructions from the official [documentation](https://docs.embeddedts.com/TS-7970#Update%20U-Boot:~:text=Boot%20section.-,Access%20U%2DBoot%20Environment%20from%20Linux,-A%20utility%20called).
+
+## Board related
+### Connect to the internet
+```bash
+ip addr add 192.168.253.102/24 dev end0
+ip route add default via 192.168.253.101 dev end0
+ip link set dev end0 up
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
+```
