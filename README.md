@@ -107,17 +107,33 @@ make menuconfig
 ### Create the config_mender_defines.h
 Using the auto-generation script from [meta-mender](https://raw.githubusercontent.com/mendersoftware/meta-mender/kirkstone/meta-mender-core/recipes-bsp/u-boot/u-boot-mender.inc) define the needed variables for Mender to work
 
-## fw_ tools
-### Requirements
-It requires the toolchain to be installed (need to check this information).
-```
-sudo apt install gcc-multilib
-```
-
-### Compile
+## fw_printenv tool
+### References
 Follow the instructions from the official [documentation](https://docs.embeddedts.com/TS-7970#Update%20U-Boot:~:text=Boot%20section.-,Access%20U%2DBoot%20Environment%20from%20Linux,-A%20utility%20called).
 
-## Board related
+### Requirements
+- In the device (with internet)
+- Install the dependencies:
+```bash
+apt-get update
+apt-get install build-essential git zip nano -y
+```
+
+### Compilation
+- Compile the fw_printenv tool
+```bash
+cd /usr/src/
+git clone --depth 1 https://gitlab.com/Northern.tech/MenderCustomerSuccess/u-boot-imx-thinkipa.git -b imx_v2015.04_3.14.52_1.1.0_ga
+cd u-boot-imx
+cp include/linux/compiler-gcc6.h include/linux/compiler-gcc12.h
+sed --in-place 's/march=armv5)/march=armv5te)/g' arch/arm/Makefile
+make ts7970-s-1g-800mhz-i_defconfig
+make -j4 env
+cp tools/env/fw_printenv /usr/bin/
+ln -s /usr/bin/fw_printenv /usr/bin/fw_setenv
+```
+
+## Board related steps
 ### Connect to the internet
 ```bash
 ip addr add 192.168.253.102/24 dev end0
