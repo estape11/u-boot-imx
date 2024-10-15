@@ -17,10 +17,8 @@ chmod +x poky-glibc-x86_64-meta-toolchain-qt5-cortexa9hf-neon-toolchain-2.2.1.sh
 ./poky-glibc-x86_64-meta-toolchain-qt5-cortexa9hf-neon-toolchain-2.2.1.sh
 ```
 
-## Set the new compiler
+## Set the new enviroment
 ```
-export ARCH=arm
-export CROSS_COMPILE=/opt/poky/2.2.1/sysroots/x86_64-pokysdk-linux/usr/bin/arm-poky-linux-gnueabi/arm-poky-linux-gnueabi-
 source /opt/poky/2.2.1/environment-setup-cortexa9hf-neon-poky-linux-gnueabi
 ```
 
@@ -30,16 +28,6 @@ source /opt/poky/2.2.1/environment-setup-cortexa9hf-neon-poky-linux-gnueabi
 git clone https://github.com/embeddedTS/u-boot-imx.git -b imx_v2015.04_3.14.52_1.1.0_ga
 cd u-boot-imx
 ```
-
-### Configure the defconfig
-
-To get the current config of the board run:
-```
-echo ${imx_type}
-```
-
-This will show you the u-boot config to use for the correct RAM timing. 
-
 
 ### Compile
 ```
