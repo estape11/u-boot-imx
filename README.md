@@ -129,3 +129,30 @@ ip route add default via 192.168.253.101 dev end0
 ip link set dev end0 up
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 ```
+
+### Create image from rootfs
+- 
+```bash
+# Create the blank image
+dd if=/dev/zero of=debian-armhf-bookworm-minimal-latest.img bs=1024k seek=1024 count=0
+
+# Partition table
+sudo parted debian-armhf-bookworm-minimal-latest.img mklabel msdos
+
+# Mount the image into a devloop
+sudo losetup -fP debian-armhf-bookworm-minimal-latest.img
+sudo losetup -a | grep debian-armhf-bookworm-minimal-latest.img
+
+# Create the partition and save the changes
+sudo fdisk /dev/<LOOP_DEV>
+
+# Create the file system
+sudo mkfs.ext3 /dev/<LOOP_DEV_PART>
+
+# Copy the content into the image
+sudo mount /dev/<LOOP_DEV_PART> /mnt
+sudo tar --numeric-owner -xjf debian-armhf-bookworm-minimal-latest.tar.bz2  -C /mnt/
+sync
+sudo umount /mnt
+sudo losetup -d /dev/<LOOP_DEV>
+```
